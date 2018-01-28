@@ -46,9 +46,9 @@ endif
 
 .PHONY: clean all
 
-all: jsos.c32
+all: meow.c32
 
-jsos.c32: $(OBJECTS) $(C_LIBS)
+meow.c32: $(OBJECTS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
 iso: mkisofs -o output.iso    -b isolinux/isolinux.bin -c isolinux/boot.cat    -no-emul-boot -boot-load-size 4 -boot-info-table    test
