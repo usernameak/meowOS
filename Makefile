@@ -37,7 +37,7 @@ LDFLAGS = -m elf_i386 \
 	-S
 	
 
-OBJECTS = src/main.o src/util.o src/vesa.o src/cli.o
+OBJECTS = src/main.o src/util.o src/vesa.o src/cli.o src/system.o
 C_LIBS = $(ROOT)/lib/libutil.c32 $(ROOT)/lib/libcom32.c32
 
 ifndef VERBOSE
