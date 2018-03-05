@@ -9,10 +9,28 @@
 #include <sys/pci.h>
 #include <string.h>
 
+const unsigned short int MAX_HISTORY = 20;
+
 static int meow_cli_line;
 static int meow_cli_col;
 
+static char* meow_cli_history_cmds[20]; // 20 commands
+static unsigned short meow_cli_history_windex = 0; // History write index
+static unsigned short meow_cli_history_rindex = 0; // History read index
+
+
 void meow_cli_exec_command(char *command) {
+    // Check for repetion
+    if(strcmp(command, *meow_cli_history_cmds[meow_cli_history_windex])) {
+	meow_cli_history_windex++;
+	// Check for overflow
+    	if(meow_cli_history_windex >= MAX_HISTORY) meow_cli_history_windex = 0;
+	// Reset the read index
+	meow_cli_history_rindex = meow_cli_history_windex;
+	// Write the command to the command history
+	meow_cli_history_cmds[meow_cli_history_windex] = command;
+    }
+
     if(strncmp(command, "ls", 2) == 0) {
         char *dir = "";
         if(command[2] == '\0') {
@@ -160,18 +178,39 @@ void meow_cli_start_interpreter(void) {
         while(1) {
             meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, '_', 0x00FFFFFF, 0);
             char c = meow_getchar();
-            if(c == 0xD) {
+            if(c == 0xD) { // Enter
                 *s++ = 0;
                 break;
-            } else if (c == 0x8) {
+            } else if (c == 0x8) { // Backspace
                 if(s > ss) {
                     *s-- = 0;
                     meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, '\0', 0x00FFFFFF, 0);
                     meow_cli_col--;
                 }
                 continue;
+            } else if(c == -32) { // Unknown key TODO: Make support for arrows
+		// Show previous command FIXME: Remove hardcode
+		//printf("windex: %d; rindex: %d", meow_cli_history_windex, meow_cli_history_rindex);
+		// Clear current command
+		for(short i = meow_cli_col; i > 1; i--, meow_cli_col--) {
+			meow_draw_char(meow_mi, i, meow_cli_line, '\0', 0x00FFFFFF, 0);
+		}
+		// Draw command from the history using its read index
+		meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, 
+				// FIXME: It gives some trash...
+				*meow_cli_history_cmds[meow_cli_history_rindex],
+				0x00FFFFFF, 0x0);
+//		printf("-out:%s-", *meow_cli_history_cmds[meow_cli_history_rindex]);
+		// If it outs of index => reset
+		if(meow_cli_history_rindex == 0) 
+		    meow_cli_history_rindex = meow_cli_history_windex + 1;
+		meow_cli_history_rindex--;
+
+		// Don't draw and execute anything
+		continue;
+		
             }
-            meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, c, 0x00FFFFFF, 0);
+	    meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, c, 0x00FFFFFF, 0);
             *s++ = c;
             meow_cli_col++;
         }
