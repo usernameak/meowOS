@@ -51,10 +51,11 @@ all: meow.c32
 meow.c32: $(OBJECTS) $(C_LIBS)
 	$(LD) $(LDFLAGS) -o $@ $^
 
-iso: mkisofs -o output.iso    -b isolinux/isolinux.bin -c isolinux/boot.cat    -no-emul-boot -boot-load-size 4 -boot-info-table    test
+iso: all
+	 mkisofs -o output.iso    -b isolinux/isolinux.bin -c isolinux/boot.cat    -no-emul-boot -boot-load-size 4 iso
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm *.o *.c32
+	rm -f src/*.o *.c32
