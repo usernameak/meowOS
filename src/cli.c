@@ -112,6 +112,14 @@ void meow_cli_exec_command(char *command) {
             fclose(f);
             meow_draw_str(meow_mi, 0, 0, "Press any key", 0x00FFFFFF, 0);
             meow_getchar();
+    } else if(strcmp(command, "clear") == 0) {
+        char *fb = (char *) meow_mi->framebuffer;
+
+        for(int i = 640 * 4 * 8; i < 640 * 480 * 4; i++) { // Ignore first (copyright) line
+            fb[i] = 0x0;
+        }
+        meow_cli_col  = 0;
+        meow_cli_line = 0;
     } else if(strcmp(command, "reboot") == 0) {
             uint64_t x = 0;
             uint64_t *xp = &x;
