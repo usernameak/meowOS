@@ -29,7 +29,7 @@ void meow_cli_exec_command(char *command) {
         // Reset the read index
         meow_cli_history_rindex = meow_cli_history_windex;
         // Write the command to the command history
-        strncpy(meow_cli_history_cmds[meow_cli_history_windex], command, MAX_CMDLENGTH);
+        strlcpy(meow_cli_history_cmds[meow_cli_history_windex], command, MAX_CMDLENGTH);
         meow_cli_history_windex++;
         meow_cli_history_rindex = meow_cli_history_windex;
     }
@@ -217,7 +217,7 @@ void meow_cli_process_keyboard(char *command, uint8_t cmdpos) {
                     );
 
                     // Copy command from the history to the current input
-                    strncpy(command, meow_cli_history_cmds[meow_cli_history_rindex], MAX_CMDLENGTH);
+                    strlcpy(command, meow_cli_history_cmds[meow_cli_history_rindex], MAX_CMDLENGTH);
 
                     // Move cursor to the end of command
                     meow_cli_col = (strlen(meow_cli_history_cmds[meow_cli_history_rindex]) + 1) % MAX_CMDLENGTH;
