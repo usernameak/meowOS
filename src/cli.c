@@ -102,7 +102,7 @@ void meow_cli_exec_command(char *command) {
                 meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "ERROR", 0x00FFFFFF, 0);
                 return;
             }
-            fread((void*) meow_mi->framebuffer, 640 * 400, 4, f);
+            fread((void *) meow_mi->framebuffer, 640 * 400, 4, f);
             char *fb = (char *) meow_mi->framebuffer;
             for(int i = 0; i < 640 * 400 * 4; i += 4) {
                 int r = fb[i];
@@ -127,12 +127,13 @@ void meow_cli_exec_command(char *command) {
         meow_cli_col  = 0;
         meow_cli_line = 1;
     } else if(strcmp(command, "reboot") == 0) {
-            uint64_t x = 0;
-            uint64_t *xp = &x;
-            asm volatile("lidt (%%eax)" : : "a" (xp));
-            volatile int b = 0;
-            volatile int a = 1 / b;
-            a;
+        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Rebooting...", 0x00FF0000, 0);
+        meow_cli_next_line();
+        meow_system_reboot();
+    } else if(strcmp(command, "shutdown") == 0) {
+        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Shuting down...", 0x00FF0000, 0);
+        meow_cli_next_line();
+        meow_system_shutdown();
     } else if(strcmp(command, "info") == 0) {
         unsigned char idt_out[6];
         __asm__ volatile ("sidt %0": "=m" (idt_out));
@@ -171,6 +172,8 @@ void meow_cli_exec_command(char *command) {
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " cat <file>: prints file contents", 0x00FFFFFF, 0);
         meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " reboot: reboots", 0x00FFFFFF, 0);
+        meow_cli_next_line();
+        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " shutdown: shuts down (not implemented yet)", 0x00FFFFFF, 0);
         meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " pci: lists PCI devs", 0x00FFFFFF, 0);
     } else if(strcmp(command, "pci") == 0) {
