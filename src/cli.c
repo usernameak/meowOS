@@ -26,7 +26,13 @@ void meow_cli_next_line(void) {
     meow_draw_str(meow_mi, 0, meow_cli_line, "                                                                                ", 0x00FFFFFF, 0);
 }
 
-void meow_cli_exec_command(char *command) {
+void meow_cli_println(const char *message) {
+    meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, message, 0x00FFFFFF, 0);
+    meow_cli_next_line();
+    // TODO: Multi-line text
+}
+
+void meow_cli_exec_command(const char *command) {
     // Add command to the history
     // > if the command exists and or it is the first command or it isn't repeation
     if(strlen(command) && (!meow_cli_history_windex || strcmp(command, meow_cli_history_cmds[meow_cli_history_windex-1]))) {
@@ -85,8 +91,7 @@ void meow_cli_exec_command(char *command) {
         }
         while((fgets(s, 80, f)) != NULL) {
             s[strcspn(s, "\n")] = 0;
-            meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
-            meow_cli_next_line();
+            meow_cli_println(s);
         }
         fclose(f);
     } else if(strncmp(command, "view", 4) == 0) {
@@ -141,7 +146,7 @@ void meow_cli_exec_command(char *command) {
         uint16_t idt_size = *((uint16_t *)(idt_out));
         char s[80];
         sprintf(s, "IDTR: addr 0x%X size %d bytes", idt_address, idt_size + 1);
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
+        meow_cli_println(s);
         struct cpuid_t {
             char a[4];
             char b[4];
@@ -151,31 +156,21 @@ void meow_cli_exec_command(char *command) {
         } id;
         cpuid(0, (uint32_t*)&id.a, (uint32_t*)&id.b, (uint32_t*)&id.c, (uint32_t*)&id.d);
         id.nul = 0;
-        meow_cli_next_line();
         sprintf(s, "VENDOR: %.4s%.4s%.4s", id.b, id.d, id.c);
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
+        meow_cli_println(s);
     } else if(strcmp(command, "help") == 0) {
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Help:", 0x0000FF00, 0);
         meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " info: shows system info", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " help: shows this", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " clear: clear the screen", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " echo <text>: prints the text", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " ls [dir]: shows directory contents", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " view <image.raw>: shows raw image", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " cat <file>: prints file contents", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " reboot: reboots", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " shutdown: shuts down (not implemented yet)", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " pci: lists PCI devs", 0x00FFFFFF, 0);
+        meow_cli_println(" info: shows system info");
+        meow_cli_println(" help: shows this");
+        meow_cli_println(" clear: clear the screen");
+        meow_cli_println(" echo <text>: prints the text");
+        meow_cli_println(" ls [dir]: shows directory contents");
+        meow_cli_println(" view <image.raw>: shows raw image");
+        meow_cli_println(" cat <file>: prints file contents");
+        meow_cli_println(" reboot: reboots");
+        meow_cli_println(" shutdown: shuts down (not implemented yet)");
+        meow_cli_println(" pci: lists PCI devs");
     } else if(strcmp(command, "pci") == 0) {
         struct pci_domain *dom = pci_scan();
         struct pci_device *func;
@@ -186,8 +181,7 @@ void meow_cli_exec_command(char *command) {
             sprintf(s, "Device %d.%d.%d: %04X:%04X/SUB:%04X:%04X/REV%04X", pci_bus(addr), pci_dev(addr), pci_func(addr), 
                 func->vendor, func->product,
                 func->sub_vendor, func->sub_product, func->revision);
-            meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
-            meow_cli_next_line();
+            meow_cli_println(s);
             i++;
         }
     } else {
