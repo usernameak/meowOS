@@ -19,6 +19,10 @@ static char meow_cli_history_cmds[20][80] = {{0}}; // MAX_HISTORY commands
 static uint8_t meow_cli_history_windex = 0; // History write index
 static uint8_t meow_cli_history_rindex = 0; // History read index
 
+void meow_cli_next_line(void) {
+    meow_cli_line = (meow_cli_line + 1) % 50;
+    meow_draw_str(meow_mi, 0, meow_cli_line, "                                                                                ", 0x00FFFFFF, 0);
+}
 
 void meow_cli_exec_command(char *command) {
     // Add command to the history
@@ -50,7 +54,7 @@ void meow_cli_exec_command(char *command) {
         }
         while((dp = readdir(d)) != NULL) {
             meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, dp->d_name, 0x00FFFFFF, 0);
-            meow_cli_line++;
+            meow_cli_next_line();
         }
         closedir(d);
     } else if(strncmp(command, "echo", 4) == 0) {
@@ -80,7 +84,7 @@ void meow_cli_exec_command(char *command) {
         while((fgets(s, 80, f)) != NULL) {
             s[strcspn(s, "\n")] = 0;
             meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
-            meow_cli_line++;
+            meow_cli_next_line();
         }
         free(s);
         fclose(f);
@@ -136,24 +140,24 @@ void meow_cli_exec_command(char *command) {
         } id;
         cpuid(0, (uint32_t*)&id.a, (uint32_t*)&id.b, (uint32_t*)&id.c, (uint32_t*)&id.d);
         id.nul = 0;
-        meow_cli_line++;
+        meow_cli_next_line();
         sprintf(s, "VENDOR: %.4s%.4s%.4s", id.b, id.d, id.c);
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
     } else if(strcmp(command, "help") == 0) {
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Help:", 0x0000FF00, 0);
-        meow_cli_line++;
+        meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " info: shows system info", 0x00FFFFFF, 0);
-        meow_cli_line++;
+        meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " help: shows this", 0x00FFFFFF, 0);
-        meow_cli_line++;
+        meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " ls [dir]: shows directory contents", 0x00FFFFFF, 0);
-        meow_cli_line++;
+        meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " view <image.raw>: shows raw image", 0x00FFFFFF, 0);
-        meow_cli_line++;
+        meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " cat <file>: prints file contents", 0x00FFFFFF, 0);
-        meow_cli_line++;
+        meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " reboot: reboots", 0x00FFFFFF, 0);
-        meow_cli_line++;
+        meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " pci: lists PCI devs", 0x00FFFFFF, 0);
     } else if(strcmp(command, "pci") == 0) {
         struct pci_domain *dom = pci_scan();
@@ -166,7 +170,7 @@ void meow_cli_exec_command(char *command) {
                 func->vendor, func->product,
                 func->sub_vendor, func->sub_product, func->revision);
             meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
-            meow_cli_line++;
+            meow_cli_next_line();
             i++;
         }
     } else {
@@ -236,13 +240,12 @@ void meow_cli_process_keyboard(char *command, uint8_t cmdpos) {
         }
 }
 
-
 void meow_cli_start_interpreter(void) {
-
     meow_cli_line = 0;
     meow_cli_col = 0;
+
     meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "meowOS (c) UsernameAK", 0x00FFFF00, 0);
-    meow_cli_line++;
+    meow_cli_next_line();
     
     char command[MAX_CMDLENGTH];
     uint8_t cmdpos = 0;
@@ -257,8 +260,8 @@ void meow_cli_start_interpreter(void) {
 
         meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, '\0', 0x00FFFFFF, 0);
         meow_cli_col = 0; // \r
-        meow_cli_line++;  // \n
+        meow_cli_next_line();
         meow_cli_exec_command(command);
-        meow_cli_line++;
+        meow_cli_line++;  // \n
     }
 }
