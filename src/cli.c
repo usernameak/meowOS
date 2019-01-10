@@ -154,6 +154,10 @@ void meow_cli_exec_command(char *command) {
         meow_cli_line++;
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " help: shows this", 0x00FFFFFF, 0);
         meow_cli_line++;
+        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " clear: clear the screen", 0x00FFFFFF, 0);
+        meow_cli_line++;
+        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " echo <text>: prints the text", 0x00FFFFFF, 0);
+        meow_cli_line++;
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " ls [dir]: shows directory contents", 0x00FFFFFF, 0);
         meow_cli_line++;
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " view <image.raw>: shows raw image", 0x00FFFFFF, 0);
