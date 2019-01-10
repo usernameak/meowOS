@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if make
+if make -j$(nproc)
 then
 
 rm iso/isolinux/meow.c32
