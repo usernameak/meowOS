@@ -9,18 +9,20 @@
 #include <sys/pci.h>
 #include <string.h>
 
-#define MAX_HISTORY 20
-#define MAX_CMDLENGTH 80
+#define MAX_LINES     48 // Maximal quantity of lines in one screen before autoclean
+#define MAX_HISTORY   20 // Maximal history size
+#define MAX_CMDLENGTH 80 // Maximal one command length
 
-static int meow_cli_line;
-static int meow_cli_col;
+static int meow_cli_line = 0;
+static int meow_cli_col  = 0;
 
 static char meow_cli_history_cmds[20][80] = {{0}}; // MAX_HISTORY commands
 static uint8_t meow_cli_history_windex = 0; // History write index
 static uint8_t meow_cli_history_rindex = 0; // History read index
 
 void meow_cli_next_line(void) {
-    meow_cli_line = (meow_cli_line + 1) % 50;
+    meow_cli_line = (meow_cli_line + 1);
+    if(meow_cli_line > MAX_LINES) meow_cli_exec_command("clear");
     meow_draw_str(meow_mi, 0, meow_cli_line, "                                                                                ", 0x00FFFFFF, 0);
 }
 
@@ -76,7 +78,7 @@ void meow_cli_exec_command(char *command) {
         }
         // meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "LS // TODO", 0x00FFFFFF, 0);
         FILE *f;
-        char *s = malloc(80);
+        char s[80];
         if((f = fopen(file, "r")) == NULL) {
             meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "ERROR", 0x00FFFFFF, 0);
             return;
@@ -86,7 +88,6 @@ void meow_cli_exec_command(char *command) {
             meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
             meow_cli_next_line();
         }
-        free(s);
         fclose(f);
     } else if(strncmp(command, "view", 4) == 0) {
             char *file = "";
@@ -116,6 +117,15 @@ void meow_cli_exec_command(char *command) {
             fclose(f);
             meow_draw_str(meow_mi, 0, 0, "Press any key", 0x00FFFFFF, 0);
             meow_getchar();
+    } else if(strcmp(command, "clear") == 0) {
+        char *fb = (char *) meow_mi->framebuffer;
+
+        for(int i = 640 * 4 * 8; i < 640 * 480 * 4; i++) { // Ignore first (copyright) line
+            fb[i] = 0x0;
+        }
+
+        meow_cli_col  = 0;
+        meow_cli_line = 1;
     } else if(strcmp(command, "reboot") == 0) {
             uint64_t x = 0;
             uint64_t *xp = &x;
@@ -150,6 +160,10 @@ void meow_cli_exec_command(char *command) {
         meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " help: shows this", 0x00FFFFFF, 0);
         meow_cli_next_line();
+        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " clear: clear the screen", 0x00FFFFFF, 0);
+        meow_cli_next_line();
+        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " echo <text>: prints the text", 0x00FFFFFF, 0);
+        meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " ls [dir]: shows directory contents", 0x00FFFFFF, 0);
         meow_cli_next_line();
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " view <image.raw>: shows raw image", 0x00FFFFFF, 0);
@@ -174,7 +188,7 @@ void meow_cli_exec_command(char *command) {
             i++;
         }
     } else {
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Unknown command, use help command for help.", 0x00FF0000, 0);
+        if(strlen(command)) meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Unknown command, use help command for help.", 0x00FF0000, 0);
     }
 }
 
@@ -241,9 +255,6 @@ void meow_cli_process_keyboard(char *command, uint8_t cmdpos) {
 }
 
 void meow_cli_start_interpreter(void) {
-    meow_cli_line = 0;
-    meow_cli_col = 0;
-
     meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "meowOS (c) UsernameAK", 0x00FFFF00, 0);
     meow_cli_next_line();
     
@@ -262,6 +273,6 @@ void meow_cli_start_interpreter(void) {
         meow_cli_col = 0; // \r
         meow_cli_next_line();
         meow_cli_exec_command(command);
-        meow_cli_line++;  // \n
+        meow_cli_next_line();
     }
 }
