@@ -9,7 +9,7 @@
 #include <sys/pci.h>
 #include <string.h>
 
-#define MAX_LINES     48 // Maximal quantity of lines in one screen
+#define MAX_LINES     48 // Maximal quantity of lines in one screen before autoclean
 #define MAX_HISTORY   20 // Maximal history size
 #define MAX_CMDLENGTH 80 // Maximal one command length
 
@@ -73,7 +73,7 @@ void meow_cli_exec_command(char *command) {
         }
         // meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "LS // TODO", 0x00FFFFFF, 0);
         FILE *f;
-        char *s = malloc(80);
+        char s[80];
         if((f = fopen(file, "r")) == NULL) {
             meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "ERROR", 0x00FFFFFF, 0);
             return;
@@ -83,7 +83,6 @@ void meow_cli_exec_command(char *command) {
             meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
             meow_cli_line++;
         }
-        free(s);
         fclose(f);
     } else if(strncmp(command, "view", 4) == 0) {
             char *file = "";
