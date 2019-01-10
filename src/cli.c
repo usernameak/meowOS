@@ -9,8 +9,9 @@
 #include <sys/pci.h>
 #include <string.h>
 
-#define MAX_HISTORY 20
-#define MAX_CMDLENGTH 80
+#define MAX_LINES     48 // Maximal quantity of lines in one screen
+#define MAX_HISTORY   20 // Maximal history size
+#define MAX_CMDLENGTH 80 // Maximal one command length
 
 static int meow_cli_line;
 static int meow_cli_col;
@@ -184,6 +185,8 @@ void meow_cli_exec_command(char *command) {
     } else {
         if(strlen(command)) meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Unknown command, use help command for help.", 0x00FF0000, 0);
     }
+
+    if(meow_cli_line > MAX_LINES) meow_cli_exec_command("clear");
 }
 
 void meow_cli_process_keyboard(char *command, uint8_t cmdpos) {
