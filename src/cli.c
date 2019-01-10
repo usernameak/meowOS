@@ -182,7 +182,7 @@ void meow_cli_exec_command(char *command) {
             i++;
         }
     } else {
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Unknown command, use help command for help.", 0x00FF0000, 0);
+        if(strlen(command)) meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Unknown command, use help command for help.", 0x00FF0000, 0);
     }
 }
 
