@@ -9,9 +9,15 @@
 #include <sys/pci.h>
 #include <string.h>
 
+#define MAX_HISTORY 20
+#define MAX_CMDLENGTH 80
+
 static int meow_cli_line;
 static int meow_cli_col;
 
+static char meow_cli_history_cmds[20][80] = {{0}}; // MAX_HISTORY commands
+static uint8_t meow_cli_history_windex = 0; // History write index
+static uint8_t meow_cli_history_rindex = 0; // History read index
 
 void meow_cli_next_line(void) {
     meow_cli_line = (meow_cli_line + 1) % 50;
@@ -19,6 +25,19 @@ void meow_cli_next_line(void) {
 }
 
 void meow_cli_exec_command(char *command) {
+    // Add command to the history
+    // > if the command exists and or it is the first command or it isn't repeation
+    if(strlen(command) && (!meow_cli_history_windex || strcmp(command, meow_cli_history_cmds[meow_cli_history_windex-1]))) {
+        // Check for overflow
+        if(meow_cli_history_windex >= MAX_HISTORY) meow_cli_history_windex = 0;
+        // Reset the read index
+        meow_cli_history_rindex = meow_cli_history_windex;
+        // Write the command to the command history
+        strlcpy(meow_cli_history_cmds[meow_cli_history_windex], command, MAX_CMDLENGTH);
+        meow_cli_history_windex++;
+        meow_cli_history_rindex = meow_cli_history_windex;
+    }
+
     if(strncmp(command, "ls", 2) == 0) {
         char *dir = "";
         if(command[2] == '\0') {
@@ -38,6 +57,15 @@ void meow_cli_exec_command(char *command) {
             meow_cli_next_line();
         }
         closedir(d);
+    } else if(strncmp(command, "echo", 4) == 0) {
+        char *message = "";
+
+        if(command[4] == ' ' && strlen(command) > 5) {
+            message = &command[5];
+            meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, message, 0x00FFFFFF, 0);
+        }
+
+        return;
     } else if(strncmp(command, "cat", 3) == 0) {
         char *file = "";
         if(command[3] == '\0') {
@@ -150,42 +178,90 @@ void meow_cli_exec_command(char *command) {
     }
 }
 
+void meow_cli_process_keyboard(char *command, uint8_t cmdpos) {
+        while(1) {
+            meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, '_', 0x00FFFFFF, 0);
+            int key = meow_getkeycode();
+            char c = key & 0xFF;
+
+            switch(key) {
+                case KEYCODE_ENTER:
+                    command[cmdpos] = '\0';
+                    return;
+                case KEYCODE_BACKSPACE:
+                    if(cmdpos > 0) {
+                        command[cmdpos--] = '\0';
+                        meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, '\0', 0x00FFFFFF, 0);
+                        meow_cli_col--;
+                    }
+                    continue;
+                case KEYCODE_UPARROW:
+                case KEYCODE_DOWNARROW:
+                    // Clear current command
+                    for(short i = meow_cli_col; i > 1; i--, meow_cli_col--) {
+                        meow_draw_char(meow_mi, i, meow_cli_line, '\0', 0x00FFFFFF, 0);
+                    }
+
+                    // Check for overflow
+                    if(key == KEYCODE_UPARROW) {
+                        if(meow_cli_history_rindex == 0) 
+                            meow_cli_history_rindex = meow_cli_history_windex;
+                        meow_cli_history_rindex--;
+                    } else {
+                        if(meow_cli_history_rindex == meow_cli_history_windex) 
+                            meow_cli_history_rindex = 0;
+                        meow_cli_history_rindex++;
+                    }
+
+                    // Draw command from the history using its read index
+                    meow_draw_str(
+                            meow_mi, meow_cli_col, meow_cli_line, 
+                            meow_cli_history_cmds[meow_cli_history_rindex],
+                            0x00FFFFFF, 0x0
+                    );
+
+                    // Copy command from the history to the current input
+                    strlcpy(command, meow_cli_history_cmds[meow_cli_history_rindex], MAX_CMDLENGTH);
+
+                    // Move cursor to the end of command
+                    meow_cli_col = (strlen(meow_cli_history_cmds[meow_cli_history_rindex]) + 1) % MAX_CMDLENGTH;
+                    cmdpos = (strlen(meow_cli_history_cmds[meow_cli_history_rindex])) % MAX_CMDLENGTH;
+                    command[cmdpos] = '\0';
+
+                    // Don't draw or execute anything
+                    continue;
+            }
+
+            if(c < 0x20 || c > 0x7F) continue; // No trash in the console =D
+
+            meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, c, 0x00FFFFFF, 0);
+            command[cmdpos++] = c;
+            meow_cli_col++;
+        }
+}
 
 void meow_cli_start_interpreter(void) {
-
     meow_cli_line = 0;
     meow_cli_col = 0;
-    meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "meowOS (c) UsernameAK & Penity team", 0x00FFFF00, 0);
+
+    meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "meowOS (c) UsernameAK", 0x00FFFF00, 0);
     meow_cli_next_line();
-    char *s = malloc(80);
-    char *ss = s;
+    
+    char command[MAX_CMDLENGTH];
+    uint8_t cmdpos = 0;
+
     while(1) {
-        s = ss;
+        command[0] = '\0';
+        cmdpos = 0;
         meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, '>', 0x00FFFFFF, 0);
         meow_cli_col++;
 
-        while(1) {
-            meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, '_', 0x00FFFFFF, 0);
-            char c = meow_getchar();
-            if(c == 0xD) {
-                *s++ = 0;
-                break;
-            } else if (c == 0x8) {
-                if(s > ss) {
-                    *s-- = 0;
-                    meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, '\0', 0x00FFFFFF, 0);
-                    meow_cli_col--;
-                }
-                continue;
-            }
-            meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, c, 0x00FFFFFF, 0);
-            *s++ = c;
-            meow_cli_col++;
-        }
+        meow_cli_process_keyboard(command, cmdpos);
+
         meow_draw_char(meow_mi, meow_cli_col, meow_cli_line, '\0', 0x00FFFFFF, 0);
-        meow_cli_col = 0;
+        meow_cli_col = 0; // \r
         meow_cli_next_line();
-        meow_cli_exec_command(ss);
-        meow_cli_next_line();
+        meow_cli_exec_command(command);
+        meow_cli_line++;  // \n
     }
 }
