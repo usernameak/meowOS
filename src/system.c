@@ -17,3 +17,17 @@ int meow_getkeycode(void) {
 
     return regs.eax.l;
 }
+
+void meow_system_reboot(void) {
+    uint64_t x = 0;
+    uint64_t *xp = &x;
+    asm volatile("lidt (%%eax)" : : "a" (xp));
+    volatile int b = 0;
+    volatile int a = 1 / b;
+    a;
+}
+
+void meow_system_shutdown(void) {
+    asm volatile ("outw %1, %0" : : "dN" ((uint16_t)0xB004), "a" ((uint16_t)0x2000));
+    // TODO: Make ACPI or APM support and true shutdown
+}

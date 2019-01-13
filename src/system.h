@@ -38,3 +38,6 @@ enum eMEOW_KEYCODES {
 extern struct vbe_mode_info_structure *meow_mi;
 char meow_getchar(void);
 int  meow_getkeycode(void);
+
+void meow_system_reboot(void);
+void meow_system_shutdown(void);

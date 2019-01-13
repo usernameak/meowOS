@@ -9,22 +9,30 @@
 #include <sys/pci.h>
 #include <string.h>
 
-#define MAX_HISTORY 20
-#define MAX_CMDLENGTH 80
+#define MAX_LINES     48 // Maximal quantity of lines in one screen before autoclean
+#define MAX_HISTORY   20 // Maximal history size
+#define MAX_CMDLENGTH 80 // Maximal one command length
 
-static int meow_cli_line;
-static int meow_cli_col;
+static int meow_cli_line = 0;
+static int meow_cli_col  = 0;
 
 static char meow_cli_history_cmds[20][80] = {{0}}; // MAX_HISTORY commands
 static uint8_t meow_cli_history_windex = 0; // History write index
 static uint8_t meow_cli_history_rindex = 0; // History read index
 
 void meow_cli_next_line(void) {
-    meow_cli_line = (meow_cli_line + 1) % 50;
+    meow_cli_line = (meow_cli_line + 1);
+    if(meow_cli_line > MAX_LINES) meow_cli_exec_command("clear");
     meow_draw_str(meow_mi, 0, meow_cli_line, "                                                                                ", 0x00FFFFFF, 0);
 }
 
-void meow_cli_exec_command(char *command) {
+void meow_cli_println(const char *message) {
+    meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, message, 0x00FFFFFF, 0);
+    meow_cli_next_line();
+    // TODO: Multi-line text
+}
+
+void meow_cli_exec_command(const char *command) {
     // Add command to the history
     // > if the command exists and or it is the first command or it isn't repeation
     if(strlen(command) && (!meow_cli_history_windex || strcmp(command, meow_cli_history_cmds[meow_cli_history_windex-1]))) {
@@ -76,17 +84,15 @@ void meow_cli_exec_command(char *command) {
         }
         // meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "LS // TODO", 0x00FFFFFF, 0);
         FILE *f;
-        char *s = malloc(80);
+        char s[80];
         if((f = fopen(file, "r")) == NULL) {
             meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "ERROR", 0x00FFFFFF, 0);
             return;
         }
         while((fgets(s, 80, f)) != NULL) {
             s[strcspn(s, "\n")] = 0;
-            meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
-            meow_cli_next_line();
+            meow_cli_println(s);
         }
-        free(s);
         fclose(f);
     } else if(strncmp(command, "view", 4) == 0) {
             char *file = "";
@@ -101,7 +107,7 @@ void meow_cli_exec_command(char *command) {
                 meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "ERROR", 0x00FFFFFF, 0);
                 return;
             }
-            fread((void*) meow_mi->framebuffer, 640 * 400, 4, f);
+            fread((void *) meow_mi->framebuffer, 640 * 400, 4, f);
             char *fb = (char *) meow_mi->framebuffer;
             for(int i = 0; i < 640 * 400 * 4; i += 4) {
                 int r = fb[i];
@@ -116,13 +122,23 @@ void meow_cli_exec_command(char *command) {
             fclose(f);
             meow_draw_str(meow_mi, 0, 0, "Press any key", 0x00FFFFFF, 0);
             meow_getchar();
+    } else if(strcmp(command, "clear") == 0) {
+        char *fb = (char *) meow_mi->framebuffer;
+
+        for(int i = 640 * 4 * 8; i < 640 * 480 * 4; i++) { // Ignore first (copyright) line
+            fb[i] = 0x0;
+        }
+
+        meow_cli_col  = 0;
+        meow_cli_line = 1;
     } else if(strcmp(command, "reboot") == 0) {
-            uint64_t x = 0;
-            uint64_t *xp = &x;
-            asm volatile("lidt (%%eax)" : : "a" (xp));
-            volatile int b = 0;
-            volatile int a = 1 / b;
-            a;
+        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Rebooting...", 0x00FF0000, 0);
+        meow_cli_next_line();
+        meow_system_reboot();
+    } else if(strcmp(command, "shutdown") == 0) {
+        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Shuting down...", 0x00FF0000, 0);
+        meow_cli_next_line();
+        meow_system_shutdown();
     } else if(strcmp(command, "info") == 0) {
         unsigned char idt_out[6];
         __asm__ volatile ("sidt %0": "=m" (idt_out));
@@ -130,7 +146,7 @@ void meow_cli_exec_command(char *command) {
         uint16_t idt_size = *((uint16_t *)(idt_out));
         char s[80];
         sprintf(s, "IDTR: addr 0x%X size %d bytes", idt_address, idt_size + 1);
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
+        meow_cli_println(s);
         struct cpuid_t {
             char a[4];
             char b[4];
@@ -140,25 +156,21 @@ void meow_cli_exec_command(char *command) {
         } id;
         cpuid(0, (uint32_t*)&id.a, (uint32_t*)&id.b, (uint32_t*)&id.c, (uint32_t*)&id.d);
         id.nul = 0;
-        meow_cli_next_line();
         sprintf(s, "VENDOR: %.4s%.4s%.4s", id.b, id.d, id.c);
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
+        meow_cli_println(s);
     } else if(strcmp(command, "help") == 0) {
         meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Help:", 0x0000FF00, 0);
         meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " info: shows system info", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " help: shows this", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " ls [dir]: shows directory contents", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " view <image.raw>: shows raw image", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " cat <file>: prints file contents", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " reboot: reboots", 0x00FFFFFF, 0);
-        meow_cli_next_line();
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, " pci: lists PCI devs", 0x00FFFFFF, 0);
+        meow_cli_println(" info: shows system info");
+        meow_cli_println(" help: shows this");
+        meow_cli_println(" clear: clear the screen");
+        meow_cli_println(" echo <text>: prints the text");
+        meow_cli_println(" ls [dir]: shows directory contents");
+        meow_cli_println(" view <image.raw>: shows raw image");
+        meow_cli_println(" cat <file>: prints file contents");
+        meow_cli_println(" reboot: reboots");
+        meow_cli_println(" shutdown: shuts down (not implemented yet)");
+        meow_cli_println(" pci: lists PCI devs");
     } else if(strcmp(command, "pci") == 0) {
         struct pci_domain *dom = pci_scan();
         struct pci_device *func;
@@ -169,12 +181,11 @@ void meow_cli_exec_command(char *command) {
             sprintf(s, "Device %d.%d.%d: %04X:%04X/SUB:%04X:%04X/REV%04X", pci_bus(addr), pci_dev(addr), pci_func(addr), 
                 func->vendor, func->product,
                 func->sub_vendor, func->sub_product, func->revision);
-            meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, s, 0x00FFFFFF, 0);
-            meow_cli_next_line();
+            meow_cli_println(s);
             i++;
         }
     } else {
-        meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Unknown command, use help command for help.", 0x00FF0000, 0);
+        if(strlen(command)) meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "Unknown command, use help command for help.", 0x00FF0000, 0);
     }
 }
 
@@ -241,9 +252,6 @@ void meow_cli_process_keyboard(char *command, uint8_t cmdpos) {
 }
 
 void meow_cli_start_interpreter(void) {
-    meow_cli_line = 0;
-    meow_cli_col = 0;
-
     meow_draw_str(meow_mi, meow_cli_col, meow_cli_line, "meowOS (c) UsernameAK", 0x00FFFF00, 0);
     meow_cli_next_line();
     
@@ -262,6 +270,6 @@ void meow_cli_start_interpreter(void) {
         meow_cli_col = 0; // \r
         meow_cli_next_line();
         meow_cli_exec_command(command);
-        meow_cli_line++;  // \n
+        meow_cli_next_line();
     }
 }
